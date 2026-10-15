@@ -150,6 +150,8 @@
     .primary { display: flex; justify-content: center; align-items: center; gap: 12px; width: 100%; border: 0; border-radius: 10px; padding: 12px 16px; min-height: 48px; background: var(--cp-accent); color: var(--cp-accent-fg); font-weight: 600; margin-top: 24px; }
     .primary:hover { background: var(--cp-accent-hover); }
     .primary:disabled { background: var(--cp-surface-soft); color: var(--cp-text-muted); cursor: not-allowed; }
+    .secondary { display: block; width: 100%; min-height: 48px; margin-top: 12px; padding: 12px 16px; border: 1px solid var(--cp-control-border); border-radius: 10px; background: var(--cp-surface); color: var(--cp-text); font-weight: 600; }
+    .secondary:hover { border-color: var(--cp-accent); background: var(--cp-accent-soft); }
     .bottom-note { text-align: center; font-size: 12px; color: var(--cp-readable-muted); margin: 20px 0 0; }
     footer { text-align: center; color: var(--cp-readable-muted); font-size: 11px; letter-spacing: .5px; padding-top: 28px; }
     .result { text-align: center; padding-top: 32px; }
@@ -255,6 +257,7 @@
         <div><strong id="accuracy"></strong>Accuracy</div>
       </div>
       <button class="primary" id="restart">Launch again <span aria-hidden="true">↗</span></button>
+      <button type="button" class="secondary" id="shuffle-restart">Shuffle and replay</button>
     </section>
     <p class="bottom-note" id="note">No timer. Just you and the cosmos.</p>
     <footer>STAY CURIOUS. KEEP EXPLORING.</footer>
@@ -273,6 +276,7 @@
       { category: "The next giant leap", question: "Which NASA program aims to return humans to the Moon?", options: ["Gemini", "Mercury", "Artemis", "Skylab"], answer: 2, fact: "Artemis aims to return astronauts to the Moon and develop the experience needed for future human exploration of Mars." }
     ];
     const get = id => document.getElementById(id);
+    let attemptQuestions = [...questions];
     let index = 0;
     let score = 0;
     let answered = false;
@@ -289,7 +293,7 @@
 
     function renderQuestion(focus = false) {
       answered = false;
-      const current = questions[index];
+      const current = attemptQuestions[index];
       get("sector").textContent = String(index + 1).padStart(2, "0");
       get("category").textContent = current.category;
       get("number").textContent = `${String(index + 1).padStart(2, "0")} / 10`;
@@ -313,7 +317,7 @@
     function selectAnswer(selected) {
       if (answered) return;
       answered = true;
-      const current = questions[index];
+      const current = attemptQuestions[index];
       const correct = selected === current.answer;
       if (correct) score++;
       const buttons = [...get("answers").children];
@@ -367,7 +371,20 @@
       if (index === questions.length - 1) showResults();
       else { index++; renderQuestion(true); }
     });
-    get("restart").addEventListener("click", () => {
+    function shuffledQuestions() {
+      const shuffled = [...attemptQuestions];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      if (shuffled.every((question, i) => question === attemptQuestions[i])) {
+        [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+      }
+      return shuffled;
+    }
+
+    function restartQuiz(order) {
+      attemptQuestions = order;
       index = 0;
       score = 0;
       get("results").hidden = true;
@@ -375,7 +392,10 @@
       get("note").textContent = "No timer. Just you and the cosmos.";
       updateProgress(0);
       renderQuestion(true);
-    });
+    }
+
+    get("restart").addEventListener("click", () => restartQuiz([...questions]));
+    get("shuffle-restart").addEventListener("click", () => restartQuiz(shuffledQuestions()));
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => {
       if (!new URLSearchParams(window.location.search).has("scoutTheme")) {
         document.documentElement.setAttribute("data-theme", event.matches ? "dark" : "light");
