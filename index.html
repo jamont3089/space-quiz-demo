@@ -164,6 +164,15 @@
     .result-stats strong { display: block; font-size: 20px; color: var(--cp-text); }
     .result-stats .right { color: var(--cp-success); }
     .result-stats .missed { color: var(--cp-danger); }
+    .review-toggle { width: 100%; margin-top: 20px; padding: 10px 14px; border: 1px solid var(--cp-control-border); border-radius: 10px; background: var(--cp-surface); color: var(--cp-text); font-weight: 600; }
+    .review-toggle:hover { border-color: var(--cp-accent); background: var(--cp-accent-soft); }
+    .answer-review { display: grid; gap: 12px; margin-top: 16px; text-align: left; }
+    .review-item { min-width: 0; padding: 14px; border: 1px solid var(--cp-border); border-radius: 10px; background: var(--cp-surface-soft); }
+    .review-item h3 { margin: 0 0 8px; font-size: 14px; line-height: 1.4; }
+    .review-item p { overflow-wrap: anywhere; margin: 4px 0 0; font-size: 13px; color: var(--cp-text-soft); }
+    .review-item .review-outcome { font-weight: 600; }
+    .review-item .review-correct { color: var(--cp-readable-success); }
+    .review-item .review-incorrect { color: var(--cp-readable-danger); }
     .enter { animation: enter .3s ease; }
     @keyframes float { 50% { transform: translateY(-7px) rotate(5deg); } }
     @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
@@ -256,6 +265,8 @@
         <div><strong class="missed" id="wrong-count"></strong>Missed</div>
         <div><strong id="accuracy"></strong>Accuracy</div>
       </div>
+      <button class="review-toggle" id="review-toggle" type="button" aria-expanded="false" aria-controls="answer-review">Review answers</button>
+      <div class="answer-review" id="answer-review" hidden></div>
       <button class="primary" id="restart">Launch again <span aria-hidden="true">↗</span></button>
       <button type="button" class="secondary" id="shuffle-restart">Shuffle and replay</button>
     </section>
@@ -280,6 +291,29 @@
     let index = 0;
     let score = 0;
     let answered = false;
+    let selections = new Map();
+
+    function renderAnswerReview() {
+      const review = get("answer-review");
+      review.replaceChildren();
+      questions.forEach((question, questionIndex) => {
+        const selected = selections.get(question);
+        const correct = selected === question.answer;
+        const item = document.createElement("article");
+        item.className = "review-item";
+        const heading = document.createElement("h3");
+        heading.textContent = `${questionIndex + 1}. ${question.question}`;
+        const outcome = document.createElement("p");
+        outcome.className = `review-outcome ${correct ? "review-correct" : "review-incorrect"}`;
+        outcome.textContent = `${correct ? "✓ Correct" : "✗ Incorrect"} — Your answer: ${question.options[selected]}`;
+        const answer = document.createElement("p");
+        answer.textContent = `Correct answer: ${question.options[question.answer]}`;
+        const fact = document.createElement("p");
+        fact.textContent = `Fact: ${question.fact}`;
+        item.append(heading, outcome, answer, fact);
+        review.append(item);
+      });
+    }
 
     function updateProgress(completed) {
       get("progress-label").innerHTML = `<strong>Mission progress</strong>${completed} of ${questions.length} complete`;
@@ -318,6 +352,7 @@
       if (answered) return;
       answered = true;
       const current = attemptQuestions[index];
+      selections.set(current, selected);
       const correct = selected === current.answer;
       if (correct) score++;
       const buttons = [...get("answers").children];
@@ -363,9 +398,15 @@
       get("wrong-count").textContent = questions.length - score;
       get("accuracy").textContent = `${score / questions.length * 100}%`;
       get("note").textContent = "The universe rewards a curious mind.";
+      renderAnswerReview();
       get("result-title").focus({ preventScroll: true });
     }
 
+    get("review-toggle").addEventListener("click", () => {
+      const expanded = get("review-toggle").getAttribute("aria-expanded") === "true";
+      get("review-toggle").setAttribute("aria-expanded", String(!expanded));
+      get("answer-review").hidden = expanded;
+    });
     get("next").addEventListener("click", () => {
       if (!answered) return;
       if (index === questions.length - 1) showResults();
@@ -387,6 +428,10 @@
       attemptQuestions = order;
       index = 0;
       score = 0;
+      selections = new Map();
+      get("review-toggle").setAttribute("aria-expanded", "false");
+      get("answer-review").hidden = true;
+      get("answer-review").replaceChildren();
       get("results").hidden = true;
       get("quiz").hidden = false;
       get("note").textContent = "No timer. Just you and the cosmos.";
