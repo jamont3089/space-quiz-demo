@@ -15,15 +15,17 @@ Browser smoke checks:
 - Choose an incorrect answer: score stays unchanged, progress still advances, the selection shakes red, and the correct answer is revealed.
 - Complete all ten questions with all-correct, all-wrong, and mixed answers. Verify score, correct/missed counts, percentage, emoji reaction, and completed mission telemetry.
 - Replay must reset score, progress, sector, answer controls, and focus. Check real Tab, Shift+Tab, Enter, and Space input when browser automation supports it; programmatic focus and `.click()` do not verify keyboard input.
+- Results offer "Launch again" in the original question order and a separate "Shuffle and replay" action. Check original-to-shuffled, shuffled-to-shuffled, shuffled-to-original, and repeated original-order replay. Each shuffled attempt must contain all ten questions exactly once and differ from the immediately previous attempt; individual positions, including the first, may stay the same. Options, correct answers, and facts must stay paired with their question.
+- Exercise the shuffle's unchanged-order fallback with controlled randomness, restoring randomness afterward. Verify both replay actions reset all state and focus the question heading; reloading restores the original order.
 - Measure contrast in both themes and feedback states. Wait for CSS transitions to settle before sampling computed colors; immediately sampled borders can still be the previous state.
 
 ## Architecture
 
 The runtime deliverable is a single self-contained `index.html`: inline CSS, inline SVG artwork, and plain JavaScript. Preserve direct file loading and offline operation without servers, dependencies, external fonts, or asset requests.
 
-The head script sets `data-theme` before rendering. The final script owns the fixed ten-question array and in-memory `index`, `score`, and `answered` state. Reloading starts a new quiz.
+The head script sets `data-theme` before rendering. The final script owns the fixed canonical ten-question `questions` array, a separate `attemptQuestions` order, and in-memory `index`, `score`, and `answered` state. Rendering and scoring both read the attempt order; never shuffle the canonical array or answer options. Reloading starts a new quiz in the original order.
 
-`renderQuestion()` creates answer buttons and resets feedback; `selectAnswer()` locks the current question, applies feedback, updates score and progress, and enables Next. Next advances only after an answer. `showResults()` switches from the quiz to results; the restart handler resets the full session.
+`renderQuestion()` creates answer buttons and resets feedback; `selectAnswer()` locks the current question, applies feedback, updates score and progress, and enables Next. Next advances only after an answer. `showResults()` switches from the quiz to results. Both replay actions use `restartQuiz(order)` to reset the full session. `shuffledQuestions()` applies Fisher-Yates to a copy of the previous attempt and swaps two entries if the entire order is unchanged, guaranteeing a different sequence without retry loops.
 
 Progress measures answered questions, while sector measures the currently displayed question. `updateProgress()` synchronizes the ARIA progress value, fill width, completed count, percentage, score, and uplink status. `renderQuestion()` separately updates the sector when advancing.
 
